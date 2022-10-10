@@ -1,0 +1,69 @@
+version: '3.9'
+services:
+  metabase-trino:
+    build: metabase-starburst/.
+    container_name: metabase-trino
+    hostname: metabase-trino
+    volumes: 
+    - /dev/urandom:/dev/random:ro
+    ports:
+     - 3000:3000
+    networks: 
+      - metanet
+  setup-trino:
+    image: bash:5.1.16
+    container_name: setup-trino
+    volumes:
+      - $PWD/setup:/tmp
+    networks:
+      - metanet
+    depends_on:
+      - metabase-trino
+    command: sh /tmp/metabase-setup.sh metabase-trino:3000
+    cpus: 1
+    mem_limit: 128m
+  postgres-data1-trino:
+    image: metabase/qa-databases:postgres-sample-12
+    container_name: postgres-data1-trino
+    ports:
+      - 5433:5432
+    hostname: postgres-data1
+    networks: 
+      - metanet
+    cpus: 1
+    mem_limit: 128m
+    command: -c log_statement=all
+  mongo-data1:
+    image: paoliniluis/qa-databases:mongo-sample-5.0
+    container_name: mongo_5
+    hostname: mongo_5
+    networks: 
+      - metanet
+    cpus: 1
+    mem_limit: 128m
+  trino:
+    image: trinodb/trino:399
+    container_name: trino-server
+    hostname: trino-server
+    volumes: 
+    - /$PWD/trino-server/config.properties:/etc/trino/config.properties
+    - /$PWD/trino-server/postgres.properties:/etc/trino/catalog/postgres.properties
+    - /$PWD/trino-server/mongodb.properties:/etc/trino/catalog/mongodb.properties
+    restart: always
+    ports:
+      - 8443:8443
+    networks:
+      - metanet
+    cpus: 1
+    mem_limit: 1024m
+  mysql-data:
+    image: metabase/qa-databases:mysql-sample-8
+    container_name: mysql-data
+    hostname: mysql-data
+    ports:
+      - 3306:3306
+    networks: 
+      - metanet
+networks: 
+  metanet:
+    driver: bridge
