@@ -1,0 +1,4 @@
+{
+    "server": "redis-data-1",
+    "port": "6379"
+}

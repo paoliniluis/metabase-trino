@@ -1,15 +1,33 @@
 version: '3.9'
 services:
   metabase-trino:
-    build: metabase-starburst/.
+    build: 
+      context: metabase-starburst/.
     container_name: metabase-trino
     hostname: metabase-trino
+    environment:
+      - MB_API_KEY=password
+      - JAVA_OPTS=-XX:MaxRAMPercentage=90
     volumes: 
     - /dev/urandom:/dev/random:ro
     ports:
      - 3000:3000
     networks: 
       - metanet
+    healthcheck:
+      test: curl --fail -I http://localhost:3000/api/health || exit 1
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    depends_on:
+      redis-data-1:
+        condition: service_healthy
+      postgres-data1-trino:
+        condition: service_healthy
+      elasticsearch-data-1:
+        condition: service_healthy
+    cpus: 2
+    mem_limit: 512m
   setup-trino:
     image: bash:5.1.16
     container_name: setup-trino
@@ -18,23 +36,85 @@ services:
     networks:
       - metanet
     depends_on:
-      - metabase-trino
+      metabase-trino:
+        condition: service_healthy
+      trino:
+        condition: service_healthy
     command: sh /tmp/metabase-setup.sh metabase-trino:3000
     cpus: 1
     mem_limit: 128m
   postgres-data1-trino:
     image: metabase/qa-databases:postgres-sample-12
     container_name: postgres-data1-trino
-    ports:
-      - 5433:5432
     hostname: postgres-data1
     networks: 
       - metanet
     cpus: 1
     mem_limit: 128m
-    command: -c log_statement=all
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U metabase -d sample"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  redis-data-1:
+    image: redis:7
+    container_name: redis-data-1
+    hostname: redis-data-1
+    ports:
+      - 6379:6379
+    networks: 
+      - metanet
+    cpus: 1
+    mem_limit: 128m
+    command: --cluster-enabled no
+    healthcheck:
+      test: [ "CMD", "redis-cli", "--raw", "incr", "ping" ]
+      interval: 30s
+      timeout: 30s
+      retries: 5
+  redis-data-generator:
+    build: redis-data-generator/.
+    container_name: redis-random-data-generator
+    hostname: redis-random-data-generator
+    volumes:
+      - $PWD/redis-data-generator:/usr/src/app/
+    networks: 
+      - metanet
+    depends_on:
+      redis-data-1:
+        condition: service_healthy
+    command: node generator.js string 10000 test
+  elasticsearch-data-1:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.17.8
+    container_name: elasticsearch-data-1
+    hostname: elasticsearch-data-1
+    ports:
+      - 9200:9200
+      - 9300:9300
+    networks: 
+      - metanet
+    cpus: 2
+    mem_limit: 512m
+    environment:
+      - discovery.type=single-node
+    healthcheck:
+      test: curl --fail http://localhost:9200/_cluster/health || exit 1
+      interval: 30s
+      timeout: 30s
+      retries: 5
+      start_period: 30s
+  makelogs:
+    build: makelogs/.
+    container_name: makelogs
+    hostname: makelogs
+    networks: 
+      - metanet
+    depends_on:
+      elasticsearch-data-1:
+        condition: service_healthy
+    command: makelogs -h elasticsearch-data-1:9200
   mongo-data1:
-    image: metabase/qa-databases:mongo-sample-5.0
+    image: paoliniluis/qa-databases:mongo-sample-5.0
     container_name: mongo_5
     hostname: mongo_5
     networks: 
@@ -42,28 +122,28 @@ services:
     cpus: 1
     mem_limit: 128m
   trino:
-    image: trinodb/trino:399
+    image: trinodb/trino:405
     container_name: trino-server
     hostname: trino-server
     volumes: 
     - /$PWD/trino-server/config.properties:/etc/trino/config.properties
     - /$PWD/trino-server/postgres.properties:/etc/trino/catalog/postgres.properties
     - /$PWD/trino-server/mongodb.properties:/etc/trino/catalog/mongodb.properties
+    - /$PWD/trino-server/elasticsearch.properties:/etc/trino/catalog/elasticsearch.properties
+    - /$PWD/trino-server/redis.properties:/etc/trino/catalog/redis.properties
     restart: always
     ports:
       - 8443:8443
     networks:
       - metanet
-    cpus: 1
+    cpus: 2
     mem_limit: 1024m
-  mysql-data:
-    image: metabase/qa-databases:mysql-sample-8
-    container_name: mysql-data
-    hostname: mysql-data
-    ports:
-      - 3306:3306
-    networks: 
-      - metanet
+    healthcheck:
+      test: /usr/lib/trino/bin/health-check
+      interval: 30s
+      timeout: 30s
+      retries: 5
+      start_period: 30s
 networks: 
   metanet:
     driver: bridge

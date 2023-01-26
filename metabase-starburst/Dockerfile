@@ -5,7 +5,7 @@ ENV FC_LANG en-US LC_CTYPE en_US.UTF-8
 WORKDIR /app/
 
 ADD run_metabase.sh .
-ADD https://github.com/starburstdata/metabase-driver/releases/download/1.0.6/starburst-1.0.6.metabase-driver.jar plugins/starburst.metabase-driver.jar
+ADD starburst-1.0.7.metabase-driver.jar plugins/starburst.metabase-driver.jar
 
 RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends ttf-dejavu && \
     # cleaning everything to reduce container size
