@@ -114,7 +114,7 @@ services:
         condition: service_healthy
     command: makelogs -h elasticsearch-data-1:9200
   mongo-data1:
-    image: paoliniluis/qa-databases:mongo-sample-5.0
+    image: metabase/qa-databases:mongo-sample-5.0
     container_name: mongo_5
     hostname: mongo_5
     networks: 
