@@ -32,7 +32,7 @@ services:
     image: bash:5.1.16
     container_name: setup-trino
     volumes:
-      - $PWD/setup:/tmp
+      - ./setup:/tmp
     networks:
       - metanet
     depends_on:
@@ -77,7 +77,7 @@ services:
     container_name: redis-random-data-generator
     hostname: redis-random-data-generator
     volumes:
-      - $PWD/redis-data-generator:/usr/src/app/
+      - ./redis-data-generator:/usr/src/app/
     networks: 
       - metanet
     depends_on:
@@ -126,11 +126,11 @@ services:
     container_name: trino-server
     hostname: trino-server
     volumes: 
-    - /$PWD/trino-server/config.properties:/etc/trino/config.properties
-    - /$PWD/trino-server/postgres.properties:/etc/trino/catalog/postgres.properties
-    - /$PWD/trino-server/mongodb.properties:/etc/trino/catalog/mongodb.properties
-    - /$PWD/trino-server/elasticsearch.properties:/etc/trino/catalog/elasticsearch.properties
-    - /$PWD/trino-server/redis.properties:/etc/trino/catalog/redis.properties
+    - ./trino-server/config.properties:/etc/trino/config.properties
+    - ./trino-server/postgres.properties:/etc/trino/catalog/postgres.properties
+    - ./trino-server/mongodb.properties:/etc/trino/catalog/mongodb.properties
+    - ./trino-server/elasticsearch.properties:/etc/trino/catalog/elasticsearch.properties
+    - ./trino-server/redis.properties:/etc/trino/catalog/redis.properties
     restart: always
     ports:
       - 8443:8443
