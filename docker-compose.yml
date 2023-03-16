@@ -6,7 +6,6 @@ services:
     container_name: metabase-trino
     hostname: metabase-trino
     environment:
-      - MB_API_KEY=password
       - JAVA_OPTS=-XX:MaxRAMPercentage=90
     volumes: 
     - /dev/urandom:/dev/random:ro
@@ -24,8 +23,8 @@ services:
         condition: service_healthy
       postgres-data1-trino:
         condition: service_healthy
-      elasticsearch-data-1:
-        condition: service_healthy
+      # elasticsearch-data-1:
+      #   condition: service_healthy
     cpus: 2
     mem_limit: 512m
   setup-trino:
@@ -56,6 +55,18 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    command: -c log_statement=all
+  mysql-data1-trino:
+    image: metabase/qa-databases:mysql-sample-8
+    container_name: mysql-data1-trino
+    hostname: mysql-data1
+    ports:
+    - 3306:3306
+    networks: 
+      - metanet
+    cpus: 1
+    mem_limit: 512m
+    command: --general-log=1
   redis-data-1:
     image: redis:7
     container_name: redis-data-1
@@ -84,35 +95,35 @@ services:
       redis-data-1:
         condition: service_healthy
     command: node generator.js string 10000 test
-  elasticsearch-data-1:
-    image: docker.elastic.co/elasticsearch/elasticsearch:7.17.8
-    container_name: elasticsearch-data-1
-    hostname: elasticsearch-data-1
-    ports:
-      - 9200:9200
-      - 9300:9300
-    networks: 
-      - metanet
-    cpus: 2
-    mem_limit: 512m
-    environment:
-      - discovery.type=single-node
-    healthcheck:
-      test: curl --fail http://localhost:9200/_cluster/health || exit 1
-      interval: 30s
-      timeout: 30s
-      retries: 5
-      start_period: 30s
-  makelogs:
-    build: makelogs/.
-    container_name: makelogs
-    hostname: makelogs
-    networks: 
-      - metanet
-    depends_on:
-      elasticsearch-data-1:
-        condition: service_healthy
-    command: makelogs -h elasticsearch-data-1:9200
+  # elasticsearch-data-1:
+  #   image: docker.elastic.co/elasticsearch/elasticsearch:7.17.8
+  #   container_name: elasticsearch-data-1
+  #   hostname: elasticsearch-data-1
+  #   ports:
+  #     - 9200:9200
+  #     - 9300:9300
+  #   networks: 
+  #     - metanet
+  #   cpus: 2
+  #   mem_limit: 512m
+  #   environment:
+  #     - discovery.type=single-node
+  #   healthcheck:
+  #     test: curl --fail http://localhost:9200/_cluster/health || exit 1
+  #     interval: 30s
+  #     timeout: 30s
+  #     retries: 5
+  #     start_period: 30s
+  # makelogs:
+  #   build: makelogs/.
+  #   container_name: makelogs
+  #   hostname: makelogs
+  #   networks: 
+  #     - metanet
+  #   depends_on:
+  #     elasticsearch-data-1:
+  #       condition: service_healthy
+  #   command: makelogs -h elasticsearch-data-1:9200
   mongo-data1:
     image: metabase/qa-databases:mongo-sample-5.0
     container_name: mongo_5
@@ -129,8 +140,9 @@ services:
     - /$PWD/trino-server/config.properties:/etc/trino/config.properties
     - /$PWD/trino-server/postgres.properties:/etc/trino/catalog/postgres.properties
     - /$PWD/trino-server/mongodb.properties:/etc/trino/catalog/mongodb.properties
-    - /$PWD/trino-server/elasticsearch.properties:/etc/trino/catalog/elasticsearch.properties
+    # - /$PWD/trino-server/elasticsearch.properties:/etc/trino/catalog/elasticsearch.properties
     - /$PWD/trino-server/redis.properties:/etc/trino/catalog/redis.properties
+    - /$PWD/trino-server/mysql.properties:/etc/trino/catalog/mysql.properties
     restart: always
     ports:
       - 8443:8443
